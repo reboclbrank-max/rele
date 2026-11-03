@@ -30,11 +30,20 @@ test("origem diferente nao recebe CORS nem faz chamadas", async () => {
   assert.equal(r.status, 403); assert.equal(chamadas, 0);
   assert.equal(r.headers.get("access-control-allow-origin"), null);
 });
-test("preflight so com origem exata", async () => {
+test("navegador nao pode usar segredo permanente, mesmo com origem prevista", async () => {
+  let chamadas = 0;
+  const r = await atender(pedido(URL, { origem: CONF.origemPermitida }), {
+    ...CONF, buscar: () => { chamadas++; },
+  });
+  assert.equal(r.status, 403);
+  assert.equal(chamadas, 0);
+  assert.equal(r.headers.get("access-control-allow-origin"), null);
+});
+test("preflight nao autoriza clientes de navegador", async () => {
   const r = await atender(new Request(URL, { method: "OPTIONS",
     headers: { origin: CONF.origemPermitida } }), CONF);
-  assert.equal(r.status, 204);
-  assert.equal(r.headers.get("access-control-allow-origin"), CONF.origemPermitida);
+  assert.equal(r.status, 403);
+  assert.equal(r.headers.get("access-control-allow-origin"), null);
 });
 test("somente rota e metodo explicitamente autorizados", async () => {
   let chamadas = 0;
@@ -57,7 +66,7 @@ test("limite de entrada medido pelo corpo", async () => {
 });
 test("repassa JSON somente ao destino fixo e nao encaminha chave do rele", async () => {
   let chamada;
-  const r = await atender(pedido(URL, { origem: CONF.origemPermitida }), { ...CONF,
+  const r = await atender(pedido(URL), { ...CONF,
     buscar: async (url, init) => {
       chamada = { url, ...init };
       return new Response('{"ok":true}', {

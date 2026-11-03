@@ -1,13 +1,11 @@
-# Relé Rebocl — reforço proposto
+# Relé Rebocl — proposta segura somente entre servidores
 
-O código antigo encaminha pedidos ao provedor LLM7 sem autenticação própria e sem limite de tamanho. Esta PR propõe uma alternativa de padrão restritivo.
+A versão atual na branch principal ainda é um proxy sem autenticação própria. Esta PR permanece em **rascunho**, sem implantação ou mudanças em credenciais existentes.
 
-**ATENÇÃO: a configuração dos clientes precisa ser revisada antes da implantação.** Não copie nem implante cegamente esta versão: ela falha fechada se a variável de ambiente REBOCL_RELAY_KEY não existir ou tiver menos de 24 caracteres.
+A proposta de atualização exige um segredo novo e exclusivo, `REBOCL_RELAY_KEY`, configurado **fora do código** no servidor. O cliente confiável também deve rodar no servidor e usar o cabeçalho `X-Rebocl-Relay-Key`. **Nunca incluir essa chave em JavaScript de navegador, PWA, apps públicos, URL, logs ou páginas**. Uma origem CORS aprovada não protege uma chave incluída no navegador; por isso, a proposta recusa qualquer requisição com cabeçalho `Origin` e qualquer `OPTIONS`.
 
-Para liberar em ambiente aprovado, o dono precisará configurar um segredo exclusivo REBOCL_RELAY_KEY fora do GitHub e, se houver cliente web, o endereço HTTPS exato em REBOCL_RELAY_ORIGIN. Clientes autorizados precisarão mandar o cabeçalho X-Rebocl-Relay-Key, sem colocar o valor em código, URL, mensagem ou log. Não reutilizar PAT do GitHub.
+Antes de implantar, revisar que todos os clientes sejam processos privados confiáveis. Clientes que precisam funcionar no navegador exigem outro intermediário de autenticação e autorização por usuário, ainda **não implementado**. Não reutilizar PAT do GitHub nem credenciais de mídia/marketing.
 
-A execução aceita somente GET /v1/models e POST /v1/chat/completions. Sem redirects ou rotas arbitrárias, com limites de 256 KiB no pedido, 2 MiB na resposta e tempo de 50 s. A validação de CORS exige origem exata. Sem configuração, retorna 503.
+O relé só encaminha `GET /v1/models` ou `POST /v1/chat/completions` ao provedor fixo. Rejeita caminhos arbitrários, parâmetros, redirects, pedido acima de 256 KiB, resposta acima de 2 MiB e limita a duração a 50 segundos. Sem segredo com comprimento mínimo configurado, retorna 503.
 
-A CI usa testes Node 22 com fetch fictício e não chama a API externa. Não há comprovação de implantação real nem de compatibilidade com todos os clientes/modelos. Este repositório possui implantação manual descrita no código original; um commit não muda automaticamente uma instância Deno Deploy existente.
-
-A PR deve permanecer draft até conferência de requisitos e configuração pelo dono. Nenhum segredo, conta, token ou deployment foi modificado.
+A CI testa os comportamentos com `fetch` simulado, sem contato real com o provedor. Ela não comprova implantação no Deno, compatibilidade dos clientes, proteção contra abuso distribuído ou adequação de limites para toda saída. Antes de qualquer ativação, o dono deve configurar a chave fora do repositório, planejar a migração e validar a integração ponta a ponta. Um merge no GitHub não altera automaticamente a implantação manual existente.

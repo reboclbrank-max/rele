@@ -15,17 +15,6 @@ function mesmoSegredo(a, b) {
   for (let i = 0; i < a.length; i++) diferenca |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diferenca === 0;
 }
-function corsDaOrigem(req, permitida) {
-  const origem = req.headers.get("origin");
-  if (!origem) return {};
-  if (!permitida || origem !== permitida) return null;
-  return {
-    "access-control-allow-origin": origem,
-    "access-control-allow-headers": "Content-Type, Authorization, X-Rebocl-Relay-Key",
-    "access-control-allow-methods": "GET, POST, OPTIONS",
-    "vary": "Origin",
-  };
-}
 async function lerLimitado(body, limite) {
   if (!body) return new Uint8Array();
   const leitor = body.getReader();
@@ -50,13 +39,11 @@ async function lerLimitado(body, limite) {
 }
 
 export async function atender(req, opcoes = {}) {
-  const cors = corsDaOrigem(req, String(opcoes.origemPermitida || ""));
-  if (cors === null) return rejeitar(403, "origem_nao_autorizada");
-  if (req.method === "OPTIONS") {
-    return Object.keys(cors).length
-      ? new Response(null, { status: 204, headers: cors })
-      : rejeitar(403, "origem_nao_autorizada");
-  }
+  // Um segredo permanente não pode ser guardado em JavaScript do navegador.
+  // Este relé é somente para processos confiáveis do servidor.
+  const cors = {};
+  if (req.headers.has("origin")) return rejeitar(403, "cliente_navegador_recusado");
+  if (req.method === "OPTIONS") return rejeitar(403, "preflight_recusado");
   const chave = String(opcoes.chave || "");
   if (chave.length < 24) return rejeitar(503, "rele_nao_configurado", cors);
   if (!mesmoSegredo(req.headers.get("x-rebocl-relay-key") || "", chave)) {
@@ -118,6 +105,5 @@ export async function atender(req, opcoes = {}) {
 if (import.meta.main) {
   Deno.serve((req) => atender(req, {
     chave: Deno.env.get("REBOCL_RELAY_KEY"),
-    origemPermitida: Deno.env.get("REBOCL_RELAY_ORIGIN"),
   }));
 }
